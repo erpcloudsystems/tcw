@@ -9,9 +9,9 @@ from tcw import __version__ as version
 setup(
 	name="tcw",
 	version=version,
-	description="Custom App",
-	author="ERP Cloud Systems",
-	author_email="info@erpcloud.systems",
+	description="tcw",
+	author="tcw",
+	author_email="tcw",
 	packages=find_packages(),
 	zip_safe=False,
 	include_package_data=True,

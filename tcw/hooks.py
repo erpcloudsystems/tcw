@@ -1,12 +1,12 @@
 from . import __version__ as app_version
 
 app_name = "tcw"
-app_title = "TCW"
-app_publisher = "ERP Cloud Systems"
-app_description = "Custom App"
+app_title = "tcw"
+app_publisher = "tcw"
+app_description = "tcw"
 app_icon = "octicon octicon-file-directory"
 app_color = "grey"
-app_email = "info@erpcloud.systems"
+app_email = "tcw"
 app_license = "MIT"
 
 # Includes in <head>
