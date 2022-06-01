@@ -1,0 +1,32 @@
+{
+ "custom_fields": [],
+ "custom_perms": [],
+ "doctype": "Department Approver",
+ "property_setters": [
+  {
+   "_assign": null,
+   "_comments": null,
+   "_liked_by": null,
+   "_user_tags": null,
+   "creation": "2022-05-16 18:14:38.419264",
+   "default_value": null,
+   "doc_type": "Department Approver",
+   "docstatus": 0,
+   "doctype_or_field": "DocField",
+   "field_name": "approver",
+   "idx": 0,
+   "modified": "2022-05-16 18:14:38.419264",
+   "modified_by": "Administrator",
+   "name": "Department Approver-approver-description",
+   "owner": "Administrator",
+   "parent": null,
+   "parentfield": null,
+   "parenttype": null,
+   "property": "description",
+   "property_type": "Text",
+   "row_name": null,
+   "value": "\u0642\u0645 \u0628\u0627\u062f\u062e\u0627\u0644 \u0627\u0633\u0645 \u0627\u0644\u0645\u0648\u0627\u0641\u0642 \u0639\u0644\u064a \u0627\u0644\u0627\u062c\u0627\u0632\u0629."
+  }
+ ],
+ "sync_on_migrate": 1
+}
