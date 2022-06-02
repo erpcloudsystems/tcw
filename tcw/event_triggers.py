@@ -49,6 +49,7 @@ def so_before_insert(doc, method=None):
         doc.length = ""
         doc.width = ""
         doc.height = ""
+
 @frappe.whitelist()
 def so_after_insert(doc, method=None):
     pass
@@ -60,7 +61,14 @@ def so_before_validate(doc, method=None):
     pass
 @frappe.whitelist()
 def so_validate(doc, method=None):
-    pass
+    if doc.shipping_method == "Shipping" and doc.shipping_company == "R2S":
+        if not doc.customer_address:
+            frappe.throw(" Please Select The Customer's Address ")
+        shipping_city = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_city')
+        shipping_state = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_state')
+        if not shipping_state or not shipping_city:
+            frappe.throw(" Please Add The Shipping City And The Shipping State For The Selected Address ")
+
 @frappe.whitelist()
 def so_on_submit(doc, method=None):
     if doc.shipping_method == "Shipping" and doc.shipping_company == "R2S":
@@ -72,7 +80,8 @@ def so_on_submit(doc, method=None):
             frappe.throw(" Please Add The Accurate Width Of The Package In The Shipping Section ")
         if doc.height == 0:
             frappe.throw(" Please Add The Accurate Height Of The Package In The Shipping Section ")
-    
+
+    ## Create Draft Sales Invoice On Sales Order Submit
     new_doc = frappe.get_doc({
             "doctype": "Sales Invoice",
             "posting_date": doc.transaction_date,
@@ -86,8 +95,23 @@ def so_on_submit(doc, method=None):
             "length": doc.length,
             "width": doc.width,
             "height": doc.height,
+            "customer_source": doc.customer_source,
+            "facebook_page": doc.facebook_page,
+            "id": doc.id,
+            "cost_center": doc.cost_center,
+            "project": doc.project,
+            "customer_address": doc.customer_address,
+            "address_display": doc.address_display,
+            "contact_person": doc.contact_person,
+            "contact_phone": doc.contact_phone,
+            "contact_mobile": doc.contact_mobile,
+            "contact_email": doc.contact_email,
+            "sales_partner": doc.sales_partner,
         })
-    is_items = frappe.db.sql(""" select a.name, a.idx, a.item_code, a.item_name, a.item_group, a.qty, a.uom, a.rate, a.amount, a.description, a.warehouse 
+
+    is_items = frappe.db.sql(""" select a.name, a.idx, a.item_code, a.item_name, a.item_group, a.qty, a.uom, a.rate, a.amount, a.description, a.warehouse, a.stock_uom, a.conversion_factor, a.price_list_rate,
+                                     a.base_price_list_rate, a.margin_type, a.margin_rate_or_amount, a.rate_with_margin, a.discount_percentage, a.discount_amount, a.base_rate_with_margin, a.item_tax_template,
+                                    a.base_rate, a.base_amount, a.pricing_rules, a.stock_uom_rate, a.is_free_item, a.grant_commission, a.warehouse, a.target_warehouse, a.batch_no
                                                                         from `tabSales Order Item` a join `tabSales Order` b
                                                                         on a.parent = b.name
                                                                         where b.name = '{name}'
@@ -106,11 +130,33 @@ def so_on_submit(doc, method=None):
         items.warehouse = c.warehouse
         items.sales_order = doc.name
         items.so_detail = c.name
+        items.stock_uom = c.stock_uom
+        items.conversion_factor = c.conversion_factor
+        items.price_list_rate = c.price_list_rate
+        items.base_price_list_rate = c.base_price_list_rate
+        items.margin_type = c.margin_type
+        items.margin_rate_or_amount = c.margin_rate_or_amount
+        items.rate_with_margin = c.rate_with_margin
+        items.discount_percentage = c.discount_percentage
+        items.discount_amount = c.discount_amount
+        items.base_rate_with_margin = c.base_rate_with_margin
+        items.item_tax_template = c.item_tax_template
+        items.base_rate = c.base_rate
+        items.base_amount = c.base_amount
+        items.pricing_rules = c.pricing_rules
+        items.stock_uom_rate = c.stock_uom_rate
+        items.is_free_item = c.is_free_item
+        items.grant_commission = c.grant_commission
+        items.warehouse = c.warehouse
+        items.target_warehouse = c.target_warehouse
+        items.batch_no = c.batch_no
+
     is_taxes = frappe.db.sql(""" select a.idx, a.charge_type, a.account_head, a.description, a.cost_center, a.rate, a.account_currency, a.tax_amount, a.total 
                                                                         from `tabSales Taxes and Charges` a join `tabSales Order` b
                                                                         on a.parent = b.name
                                                                         where b.name = '{name}'
                                                                     """.format(name=doc.name), as_dict=1)
+
     for e in is_taxes:
         is_taxes = new_doc.append("taxes", {})
         is_taxes.charge_type = e.charge_type
@@ -124,33 +170,6 @@ def so_on_submit(doc, method=None):
     new_doc.insert(ignore_permissions=True)
     frappe.msgprint("  تم إنشاء فاتورة مبيعات بحالة مسودة رقم " + new_doc.name)
     
-    '''
-    new_doc = frappe.get_doc({
-        "doctype": "Delivery Note",
-        "posting_date": self.transaction_date,
-        "customer": self.customer,
-    })
-    is_items = frappe.db.sql(""" select a.idx, a.name, a.item_code, a.item_name, a.item_group, a.qty, a.uom, a.rate, a.amount
-    		                                                           from `tabSales Order Item` a join `tabSales Order` b
-    		                                                           on a.parent = b.name
-    		                                                           where b.name = '{name}'
-    		                                                       """.format(name=self.name), as_dict=1)
-
-    for c in is_items:
-        items = new_doc.append("items", {})
-        items.idx = c.idx
-        items.item_code = c.item_code
-        items.item_name = c.item_name
-        items.item_group = c.item_group
-        items.qty = c.qty
-        items.uom = c.uom
-        items.rate = c.rate
-        items.amount = c.amount
-
-    new_doc.insert(ignore_permissions=True)
-    frappe.msgprint("  تم إنشاء أذن تسليم بحالة مسودة رقم " + new_doc.name)
-    '''
-
 @frappe.whitelist()
 def so_on_cancel(doc, method=None):
     pass
@@ -187,35 +206,6 @@ def dn_validate(doc, method=None):
 @frappe.whitelist()
 def dn_on_submit(self, method=None):
     pass
-    '''
-    new_doc = frappe.get_doc({
-        "doctype": "Sales Invoice",
-        "transaction_date": self.posting_date,
-        "due_date": self.posting_date,
-        "customer": self.customer,
-        "shipping_method": "TMS",
-    })
-    is_items = frappe.db.sql(""" select a.idx, a.name, a.item_code, a.item_name, a.item_group, a.qty, a.uom, a.rate, a.amount
-                                                                       from `tabDelivery Note Item` a join `tabDelivery Note` b
-                                                                       on a.parent = b.name
-                                                                       where b.name = '{name}'
-                                                                   """.format(name=self.name), as_dict=1)
-
-    for c in is_items:
-        items = new_doc.append("items", {})
-        items.idx = c.idx
-        items.item_code = c.item_code
-        items.item_name = c.item_name
-        items.item_group = c.item_group
-        items.qty = c.qty
-        items.uom = c.uom
-        items.rate = c.rate
-        items.amount = c.amount
-
-    new_doc.insert(ignore_permissions=True)
-    new_doc.submit()
-    frappe.msgprint("  تم إنشاء فاتورة مسجلة رقم " + new_doc.name)
-    '''
 @frappe.whitelist()
 def dn_on_cancel(doc, method=None):
     pass
@@ -260,9 +250,14 @@ def siv_before_validate(doc, method=None):
 @frappe.whitelist()
 def siv_validate(doc, method=None):
     if doc.shipping_method == "Shipping" and doc.shipping_company == "R2S":
-        # Calculate Shipping Fees
+        if not doc.customer_address:
+            frappe.throw(" Please Select The Customer's Address ")
         shipping_city = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_city')
         shipping_state = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_state')
+        if not shipping_state or not shipping_city:
+            frappe.throw(" Please Add The Shipping City And The Shipping State For The Selected Address ")
+
+    ## Calculate Shipping Fees
         data = {}
         calculateTariffRequestData = {}
         calculateTariffRequestData["customerCode"] = "2330"
@@ -312,6 +307,8 @@ def siv_on_submit(doc, method=None):
             shipping_address = frappe.db.get_value('Address', {'name': doc.customer_address}, 'address_line1')
             shipping_city = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_city')
             shipping_state = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_state')
+
+    ## Create R2S Shipment
             data = {}
             package = []
             waybillRequestData = {}
@@ -378,10 +375,12 @@ def siv_on_submit(doc, method=None):
             new_comment.insert(ignore_permissions=True)
             frappe.msgprint(returned_data["message"])
 
+    ## Create R2S Shipment (Refund)
         if doc.is_return:
             shipping_address = frappe.db.get_value('Address', {'name': doc.customer_address}, 'address_line1')
             shipping_city = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_city')
             shipping_state = frappe.db.get_value('Address', {'name': doc.customer_address}, 'shipping_state')
+
             data = {}
             waybillRequestData = {}
             waybillRequestData["FromOU"] = ""
@@ -440,7 +439,7 @@ def siv_on_submit(doc, method=None):
             new_comment.insert(ignore_permissions=True)
             frappe.msgprint(returned_data["message"])
             
-    ##Create Delivery Note On Submit Sales Invoice
+    ## Create Draft Delivery Note On Sales Invoice Submit
     new_doc = frappe.get_doc({
             "doctype": "Delivery Note",
             "posting_date": doc.posting_date,
@@ -448,6 +447,7 @@ def siv_on_submit(doc, method=None):
             "sales_invoice": doc.name,
             "shipment_pdf": doc.shipment_pdf,
         })
+
     is_items = frappe.db.sql(""" select a.idx, a.name, a.item_code, a.item_name, a.item_group, a.qty, a.uom, a.rate, a.amount, a.description, a.warehouse 
                                                                         from `tabSales Invoice Item` a join `tabSales Invoice` b
                                                                         on a.parent = b.name
@@ -467,11 +467,13 @@ def siv_on_submit(doc, method=None):
         items.warehouse = c.warehouse
         items.against_sales_invoice = doc.name
         items.si_detail = c.name
+
     is_taxes = frappe.db.sql(""" select a.idx, a.charge_type, a.account_head, a.description, a.cost_center, a.rate, a.account_currency, a.tax_amount, a.total 
                                                                         from `tabSales Taxes and Charges` a join `tabSales Invoice` b
                                                                         on a.parent = b.name
                                                                         where b.name = '{name}'
                                                                     """.format(name=doc.name), as_dict=1)
+
     for e in is_taxes:
         is_taxes = new_doc.append("taxes", {})
         is_taxes.charge_type = e.charge_type
@@ -850,4 +852,40 @@ def blank_before_cancel(doc, method=None):
     pass
 @frappe.whitelist()
 def blank_on_update(doc, method=None):
+    pass
+################ Customer
+@frappe.whitelist()
+def add_before_insert(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_after_insert(doc, method=None):
+    add = frappe.get_doc('Address', {doc.customer_primary_address})
+    add.shipping_city = doc.shipping_city
+    add.shipping_state = doc.shipping_state
+@frappe.whitelist()
+def add_onload(doc, method=None):
+    pass
+@frappe.whitelist()
+def blank_before_validate(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_validate(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_on_submit(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_on_cancel(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_on_update_after_submit(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_before_save(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_before_cancel(doc, method=None):
+    pass
+@frappe.whitelist()
+def add_on_update(doc, method=None):
     pass

@@ -201,6 +201,24 @@ doc_events = {
 		"before_cancel": "tcw.event_triggers.emad_before_cancel",
 		"on_update": "tcw.event_triggers.emad_on_update",
 	},
+	"Customer": {
+		"before_insert": "tcw.event_triggers.cust_before_insert",
+		"after_insert": "tcw.event_triggers.cust_after_insert",
+		"onload": "tcw.event_triggers.cust_onload",
+		"before_validate": "tcw.event_triggers.cust_before_validate",
+		"validate": "tcw.event_triggers.cust_validate",
+		"before_save": "tcw.event_triggers.cust_before_save",
+		"on_update": "tcw.event_triggers.cust_on_update",
+	},
+	"Address": {
+		"before_insert": "tcw.event_triggers.add_before_insert",
+		"after_insert": "tcw.event_triggers.add_after_insert",
+		"onload": "tcw.event_triggers.add_onload",
+		"before_validate": "tcw.event_triggers.add_before_validate",
+		"validate": "tcw.event_triggers.add_validate",
+		"before_save": "tcw.event_triggers.add_before_save",
+		"on_update": "tcw.event_triggers.add_on_update",
+	},
 }
 
 # Includes in <head>
