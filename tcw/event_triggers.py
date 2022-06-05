@@ -2,6 +2,7 @@ from __future__ import unicode_literals
 import frappe
 from frappe import auth
 import datetime
+from frappe.utils import add_to_date, getdate
 import json, ast, requests
 
 ################ Quotation
@@ -52,15 +53,653 @@ def so_before_insert(doc, method=None):
 
 @frappe.whitelist()
 def so_after_insert(doc, method=None):
-    pass
+   pass
 @frappe.whitelist()
 def so_onload(doc, method=None):
     pass
 @frappe.whitelist()
 def so_before_validate(doc, method=None):
-    pass
+    enable = frappe.db.get_value('Offers', doc.select_offer, 'enable')
+    if enable == 0:
+        frappe.throw(" Offer " + doc.select_offer + " Is Not Active ")
+
+    ### Discount Offer ###
+    if doc.offer_type == "Discount":
+        rate = frappe.db.get_value('Item Price', {'item_code': doc.item_1, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        if not rate:
+            frappe.throw(" There is no Price For Item Code " + doc.item_1 + " In The Selected Price List ")
+
+        discount_percent = frappe.db.get_value('Offers', doc.select_offer, 'discount_percent')
+
+        offered_item = doc.append("items", {})
+        offered_item.item_code = doc.item_1
+        offered_item.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+        offered_item.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+        offered_item.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+        offered_item.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                             {'parent': doc.item_1, 'uom': offered_item.uom},
+                                                             'conversion_factor')
+        offered_item.qty = 1
+        offered_item.discount_percentage = discount_percent
+
+        doc.select_offer = ""
+        doc.offer_type = ""
+        doc.item_1 = ""
+        doc.item_name_1 = ""
+        doc.item_2 = ""
+        doc.item_name_2 = ""
+
+    ### Buy 1 Get 1 Free ###
+    if doc.select_offer == "Buy 1 Get 1 Free" and enable == 1:
+        rate_1 = frappe.db.get_value('Item Price', {'item_code': doc.item_1, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        rate_2 = frappe.db.get_value('Item Price', {'item_code': doc.item_2, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        if not rate_1:
+            frappe.throw(" There is no Price For Item Code " + doc.item_1 + " In The Selected Price List ")
+        if not rate_2:
+            frappe.throw(" There is no Price For Item Code " + doc.item_2 + " In The Selected Price List ")
+
+        if rate_1 >= rate_2:
+            offered_item = doc.append("items", {})
+            offered_item.item_code = doc.item_1
+            offered_item.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            offered_item.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            offered_item.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            offered_item.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                 {'parent': doc.item_1, 'uom': offered_item.uom},
+                                                                 'conversion_factor')
+            offered_item.qty = 1
+            offered_item.rate = rate_1
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_2
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+
+        if rate_1 < rate_2:
+            offered_item = doc.append("items", {})
+            offered_item.item_code = doc.item_2
+            offered_item.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            offered_item.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            offered_item.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            offered_item.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                 {'parent': doc.item_2, 'uom': offered_item.uom},
+                                                                 'conversion_factor')
+            offered_item.qty = 1
+            offered_item.rate = rate_2
+
+            free_item = doc.append("items", {})
+            free_item.item_code = doc.item_1
+            free_item.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            free_item.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            free_item.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            free_item.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                              {'parent': doc.item_1, 'uom': free_item.uom},
+                                                              'conversion_factor')
+            free_item.qty = 1
+            free_item.discount_percentage = 100
+            free_item.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+
+    ### Buy 2 Get 1 Free ###
+    if doc.select_offer == "Buy 2 Get 1 Free" and enable == 1:
+        rate_1 = frappe.db.get_value('Item Price', {'item_code': doc.item_1, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        rate_2 = frappe.db.get_value('Item Price', {'item_code': doc.item_2, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        rate_3 = frappe.db.get_value('Item Price', {'item_code': doc.item_3, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        if not rate_1:
+            frappe.throw(" There is no Price For Item Code " + doc.item_1 + " In The Selected Price List ")
+        if not rate_2:
+            frappe.throw(" There is no Price For Item Code " + doc.item_2 + " In The Selected Price List ")
+        if not rate_3:
+            frappe.throw(" There is no Price For Item Code " + doc.item_3 + " In The Selected Price List ")
+
+        if doc.item_1 != doc.item_2:
+            frappe.throw(" Item 1 And Item 2 Should Be The Same Item ")
+
+        if rate_3 > rate_1:
+            frappe.throw(" Please Select Another 3rd Item As It's More Expensive Than The Offered Item")
+
+        if rate_3 <= rate_1:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_1
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_1, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 2
+            offered_item1.rate = rate_1
+
+            free_item = doc.append("items", {})
+            free_item.item_code = doc.item_3
+            free_item.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                              {'parent': doc.item_3, 'uom': free_item.uom},
+                                                              'conversion_factor')
+            free_item.qty = 1
+            free_item.discount_percentage = 100
+            free_item.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+
+    ### Buy 1 Get 2 Free ###
+    if doc.select_offer == "Buy 1 Get 2 Free" and enable == 1:
+        rate_1 = frappe.db.get_value('Item Price', {'item_code': doc.item_1, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        rate_2 = frappe.db.get_value('Item Price', {'item_code': doc.item_2, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        rate_3 = frappe.db.get_value('Item Price', {'item_code': doc.item_3, 'price_list': doc.selling_price_list},
+                                     'price_list_rate')
+        if not rate_1:
+            frappe.throw(" There is no Price For Item Code " + doc.item_1 + " In The Selected Price List ")
+        if not rate_2:
+            frappe.throw(" There is no Price For Item Code " + doc.item_2 + " In The Selected Price List ")
+        if not rate_3:
+            frappe.throw(" There is no Price For Item Code " + doc.item_3 + " In The Selected Price List ")
+
+        if rate_1 > rate_2 and rate_1 > rate_3:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_1
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_1, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_1
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_2
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_2 > rate_1 and rate_2 > rate_3:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_2
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_2, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_2
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_1
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_1, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_3 > rate_1 and rate_3 > rate_2:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_3
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_3, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_3
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_1
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_1, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_2
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_1 == rate_2 and rate_1 > rate_3:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_1
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_1, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_1
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_2
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_1 == rate_2 and rate_1 < rate_3:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_3
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_3, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_3
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_1
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_1, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_2
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_1 == rate_3 and rate_1 > rate_2:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_1
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_1, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_1
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_2
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_1 == rate_3 and rate_1 < rate_2:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_2
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_2, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_2
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_1
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_1, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_2 == rate_3 and rate_1 < rate_2:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_2
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_2, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_2
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_1
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_1, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_2 == rate_3 and rate_1 > rate_2:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_1
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_1, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_1
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_2
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+        if rate_1 == rate_2 and rate_1 == rate_3:
+            offered_item1 = doc.append("items", {})
+            offered_item1.item_code = doc.item_1
+            offered_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'item_name')
+            offered_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'description')
+            offered_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_1}, 'stock_uom')
+            offered_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                                  {'parent': doc.item_1, 'uom': offered_item1.uom},
+                                                                  'conversion_factor')
+            offered_item1.qty = 1
+            offered_item1.rate = rate_1
+
+            free_item1 = doc.append("items", {})
+            free_item1.item_code = doc.item_2
+            free_item1.item_name = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'item_name')
+            free_item1.description = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'description')
+            free_item1.uom = frappe.db.get_value('Item', {'item_code': doc.item_2}, 'stock_uom')
+            free_item1.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_2, 'uom': free_item1.uom},
+                                                               'conversion_factor')
+            free_item1.qty = 1
+            free_item1.discount_percentage = 100
+            free_item1.is_free_item = 1
+
+            free_item2 = doc.append("items", {})
+            free_item2.item_code = doc.item_3
+            free_item2.item_name = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'item_name')
+            free_item2.description = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'description')
+            free_item2.uom = frappe.db.get_value('Item', {'item_code': doc.item_3}, 'stock_uom')
+            free_item2.conversion_factor = frappe.db.get_value('UOM Conversion Detail',
+                                                               {'parent': doc.item_3, 'uom': free_item2.uom},
+                                                               'conversion_factor')
+            free_item2.qty = 1
+            free_item2.discount_percentage = 100
+            free_item2.is_free_item = 1
+
+            doc.select_offer = ""
+            doc.offer_type = ""
+            doc.item_1 = ""
+            doc.item_name_1 = ""
+            doc.item_2 = ""
+            doc.item_name_2 = ""
+            doc.item_3 = ""
+            doc.item_name_3 = ""
+
+    doc.select_offer = ""
+    doc.offer_type = ""
+    doc.item_1 = ""
+    doc.item_name_1 = ""
+    doc.item_2 = ""
+    doc.item_name_2 = ""
+    doc.item_3 = ""
+    doc.item_name_3 = ""
+
 @frappe.whitelist()
 def so_validate(doc, method=None):
+    end_date = add_to_date(doc.transaction_date, days=-2)
+    so = frappe.db.get_list('Sales Order', filters=[['transaction_date', 'between', [end_date, doc.transaction_date]]], fields=['name', 'contact_mobile'])
+    for x in so:
+        if doc.contact_mobile == x.contact_mobile and doc.name != x.name:
+            frappe.msgprint( x.name + ' Is Created With The Same Phone Number During The Last 48 Hours')
+
     if doc.shipping_method == "Shipping" and doc.shipping_company == "R2S":
         if not doc.customer_address:
             frappe.throw(" Please Select The Customer's Address ")
@@ -71,6 +710,10 @@ def so_validate(doc, method=None):
 
 @frappe.whitelist()
 def so_on_submit(doc, method=None):
+    if not doc.items:
+        frappe.throw(" Please Select Items ")
+    if not doc.shipping_method:
+        frappe.throw(" Please Select Shipping Method ")
     if doc.shipping_method == "Shipping" and doc.shipping_company == "R2S":
         if doc.actual_weight == 0:
             frappe.throw(" Please Add The Actual Weight Of The Package In The Shipping Section ")
@@ -95,7 +738,7 @@ def so_on_submit(doc, method=None):
             "length": doc.length,
             "width": doc.width,
             "height": doc.height,
-            "customer_source": doc.customer_source,
+            "source": doc.source,
             "facebook_page": doc.facebook_page,
             "id": doc.id,
             "cost_center": doc.cost_center,
@@ -193,7 +836,8 @@ def dn_before_insert(doc, method=None):
     pass
 @frappe.whitelist()
 def dn_after_insert(doc, method=None):
-    pass
+    so = frappe.db.sql(""" select against_sales_order from `tabDelivery Note Item` where parent = '{parent}' limit 1 """.format(parent=doc.name))
+    frappe.db.sql(""" update `tabSales Order` set workflow_state = 'Order Picked' where name = '{so}'""".format(so=so[0][0]))
 @frappe.whitelist()
 def dn_onload(doc, method=None):
     pass
@@ -202,10 +846,20 @@ def dn_before_validate(doc, method=None):
     pass
 @frappe.whitelist()
 def dn_validate(doc, method=None):
+    if doc.postponed_ == 1:
+        so = frappe.db.sql(
+            """ select against_sales_order from `tabDelivery Note Item` where parent = '{parent}' limit 1 """.format(
+                parent=doc.name))
+        frappe.db.sql(""" update `tabSales Order` set workflow_state = 'Order Postponed' where name = '{so}'""".format(
+            so=so[0][0]))
     pass
 @frappe.whitelist()
 def dn_on_submit(self, method=None):
-    pass
+    so = frappe.db.sql(
+        """ select against_sales_order from `tabDelivery Note Item` where parent = '{parent}' limit 1 """.format(
+            parent=doc.name))
+    frappe.db.sql(
+        """ update `tabSales Order` set workflow_state = 'Delivered' where name = '{so}'""".format(so=so[0][0]))
 @frappe.whitelist()
 def dn_on_cancel(doc, method=None):
     pass
@@ -241,6 +895,15 @@ def siv_before_insert(doc, method=None):
 
 @frappe.whitelist()
 def siv_after_insert(doc, method=None):
+    so = frappe.db.sql(""" select sales_order from `tabSales Invoice Item` where parent = '{parent}' limit 1 """.format(
+        parent=doc.name))
+    if doc.shipping_method == "Shipping":
+        state = "Shipping Process"
+    else:
+        state = "TMS Process"
+    frappe.db.sql(""" update `tabSales Order` set workflow_state = '{state}' where name = '{so}'""".format(state=state,
+                                                                                                           so=so[0][0]))
+    # frappe.msgprint(so[0][0])
     pass
 def siv_onload(doc, method=None):
     pass
@@ -293,6 +956,12 @@ def siv_validate(doc, method=None):
 
 @frappe.whitelist()
 def siv_on_submit(doc, method=None):
+    so = frappe.db.sql(""" select sales_order from `tabSales Invoice Item` where parent = '{parent}' limit 1 """.format(
+        parent=doc.name))
+
+    frappe.db.sql(
+        """ update `tabSales Order` set workflow_state = 'Order Preparation' where name = '{so}'""".format(so=so[0][0]))
+
     if doc.shipping_method == "Shipping" and doc.shipping_company == "R2S":
         if doc.actual_weight == 0:
             frappe.throw(" Please Add The Actual Weight Of The Package In The Shipping Section ")
@@ -855,18 +1524,55 @@ def blank_on_update(doc, method=None):
     pass
 ################ Customer
 @frappe.whitelist()
+def cust_before_insert(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_after_insert(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_onload(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_before_validate(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_validate(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_on_submit(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_on_cancel(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_on_update_after_submit(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_before_save(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_before_cancel(doc, method=None):
+    pass
+@frappe.whitelist()
+def cust_on_update(doc, method=None):
+    pass
+################ Address
+@frappe.whitelist()
 def add_before_insert(doc, method=None):
     pass
 @frappe.whitelist()
 def add_after_insert(doc, method=None):
-    add = frappe.get_doc('Address', {doc.customer_primary_address})
-    add.shipping_city = doc.shipping_city
-    add.shipping_state = doc.shipping_state
+    for x in doc.links:
+        cust = frappe.get_doc('Customer', {'name': x.link_name})
+        doc.shipping_city = cust.shipping_city
+        doc.shipping_state = cust.shipping_state
+        doc.save()
+        doc.reload()
 @frappe.whitelist()
 def add_onload(doc, method=None):
     pass
 @frappe.whitelist()
-def blank_before_validate(doc, method=None):
+def add_before_validate(doc, method=None):
     pass
 @frappe.whitelist()
 def add_validate(doc, method=None):
@@ -889,3 +1595,14 @@ def add_before_cancel(doc, method=None):
 @frappe.whitelist()
 def add_on_update(doc, method=None):
     pass
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_offered_items(doctype, txt, searchfield, start, page_len, filters):
+    offers = [filters.get("value")]
+    return frappe.get_all(
+    	"Offered Items",
+    	filters={"parent": ("in", offers)},
+    	fields=["item_code","item_name"],
+    	as_list=1,
+    )

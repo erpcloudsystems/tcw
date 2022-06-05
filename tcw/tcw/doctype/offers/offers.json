@@ -1,0 +1,120 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:offer_name",
+ "creation": "2022-06-03 13:03:10.816453",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "offer_name",
+  "offer_type",
+  "enable",
+  "column_break_3",
+  "discount_percent",
+  "section_break_3",
+  "get_items_from",
+  "item_group",
+  "get_items",
+  "section_break_9",
+  "offered_items"
+ ],
+ "fields": [
+  {
+   "fieldname": "offer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Offer Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "0",
+   "fieldname": "enable",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Enable"
+  },
+  {
+   "fieldname": "section_break_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "offered_items",
+   "fieldtype": "Table",
+   "label": "Offered Items",
+   "options": "Offered Items"
+  },
+  {
+   "default": "Discount",
+   "fieldname": "offer_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Offer Type",
+   "options": "Discount\nFree Items",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.offer_type == \"Discount\"",
+   "fieldname": "discount_percent",
+   "fieldtype": "Percent",
+   "label": "Discount (%)",
+   "mandatory_depends_on": "eval:doc.offer_type == \"Discount\""
+  },
+  {
+   "depends_on": "eval:doc.get_items_from == \"Item Group\"",
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Group",
+   "mandatory_depends_on": "eval:doc.get_items_from == \"Item Group\"",
+   "options": "Item Group"
+  },
+  {
+   "fieldname": "section_break_9",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "get_items_from",
+   "fieldtype": "Select",
+   "label": "Get Items From",
+   "options": "All Item List\nItem Group"
+  },
+  {
+   "fieldname": "get_items",
+   "fieldtype": "Button",
+   "label": "Get Items"
+  }
+ ],
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2022-06-05 14:31:59.843267",
+ "modified_by": "Administrator",
+ "module": "TCW",
+ "name": "Offers",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "title_field": "offer_name"
+}
