@@ -726,35 +726,56 @@ def so_on_submit(doc, method=None):
 
     ## Create Draft Sales Invoice On Sales Order Submit
     new_doc = frappe.get_doc({
-            "doctype": "Sales Invoice",
-            "posting_date": doc.transaction_date,
-            "customer": doc.customer,
-            "shipping_method": doc.shipping_method,
-            "shipping_company": doc.shipping_company,
-            "driver": doc.driver,
-            "due_date": doc.transaction_date,
-            "package_description": doc.package_description,
-            "actual_weight": doc.actual_weight,
-            "length": doc.length,
-            "width": doc.width,
-            "height": doc.height,
-            "source": doc.source,
-            "facebook_page": doc.facebook_page,
-            "id": doc.id,
-            "cost_center": doc.cost_center,
-            "project": doc.project,
-            "customer_address": doc.customer_address,
-            "address_display": doc.address_display,
-            "contact_person": doc.contact_person,
-            "contact_phone": doc.contact_phone,
-            "contact_mobile": doc.contact_mobile,
-            "contact_email": doc.contact_email,
-            "sales_partner": doc.sales_partner,
+        "doctype": "Sales Invoice",
+        "posting_date": doc.transaction_date,
+        "customer": doc.customer,
+        "tax_id": doc.tax_id,
+        "customer_group": doc.customer_group,
+        "territory": doc.territory,
+        "currency": doc.currency,
+        "shipping_method": doc.shipping_method,
+        "shipping_company": doc.shipping_company,
+        "driver": doc.driver,
+        "due_date": doc.transaction_date,
+        "po_no": doc.po_no,
+        "po_date": doc.po_date,
+        "package_description": doc.package_description,
+        "actual_weight": doc.actual_weight,
+        "length": doc.length,
+        "width": doc.width,
+        "height": doc.height,
+        "source": doc.source,
+        "facebook_page": doc.facebook_page,
+        "id": doc.id,
+        "cost_center": doc.cost_center,
+        "project": doc.project,
+        "customer_address": doc.customer_address,
+        "address_display": doc.address_display,
+        "contact_person": doc.contact_person,
+        "contact_phone": doc.contact_phone,
+        "contact_mobile": doc.contact_mobile,
+        "contact_email": doc.contact_email,
+        "shipping_address_name": doc.shipping_address_name,
+        "dispatch_address_name": doc.dispatch_address_name,
+        "company_address": doc.company_address,
+        "set_warehouse": doc.set_warehouse,
+        "conversion_rate": doc.conversion_rate,
+        "selling_price_list": doc.selling_price_list,
+        "price_list_currency": doc.price_list_currency,
+        "plc_conversion_rate": doc.plc_conversion_rate,
+        "ignore_pricing_rule": doc.ignore_pricing_rule,
+        "tc_name": doc.tc_name,
+        "terms": doc.terms,
+        "apply_discount_on": doc.apply_discount_on,
+        "base_discount_amount": doc.base_discount_amount,
+        "additional_discount_percentage": doc.additional_discount_percentage,
+        "discount_amount": doc.discount_amount,
+        "sales_partner": doc.sales_partner,
         })
 
     is_items = frappe.db.sql(""" select a.name, a.idx, a.item_code, a.item_name, a.item_group, a.qty, a.uom, a.rate, a.amount, a.description, a.warehouse, a.stock_uom, a.conversion_factor, a.price_list_rate,
                                      a.base_price_list_rate, a.margin_type, a.margin_rate_or_amount, a.rate_with_margin, a.discount_percentage, a.discount_amount, a.base_rate_with_margin, a.item_tax_template,
-                                    a.base_rate, a.base_amount, a.pricing_rules, a.stock_uom_rate, a.is_free_item, a.grant_commission, a.warehouse, a.target_warehouse, a.batch_no
+                                    a.base_rate, a.base_amount, a.pricing_rules, a.stock_uom_rate, a.is_free_item, a.grant_commission, a.warehouse, a.target_warehouse
                                                                         from `tabSales Order Item` a join `tabSales Order` b
                                                                         on a.parent = b.name
                                                                         where b.name = '{name}'
@@ -792,23 +813,32 @@ def so_on_submit(doc, method=None):
         items.grant_commission = c.grant_commission
         items.warehouse = c.warehouse
         items.target_warehouse = c.target_warehouse
-        items.batch_no = c.batch_no
 
-    is_taxes = frappe.db.sql(""" select a.idx, a.charge_type, a.account_head, a.description, a.cost_center, a.rate, a.account_currency, a.tax_amount, a.total 
-                                                                        from `tabSales Taxes and Charges` a join `tabSales Order` b
-                                                                        on a.parent = b.name
-                                                                        where b.name = '{name}'
-                                                                    """.format(name=doc.name), as_dict=1)
+    is_taxes = frappe.db.sql(""" select a.idx, a.charge_type, a.row_id, a.account_head, a.description, a.included_in_print_rate, a.included_in_paid_amount, a.rate, a.account_currency, a.tax_amount,
+                                a.total, a.tax_amount_after_discount_amount, a.base_tax_amount, a.base_total, a.base_tax_amount_after_discount_amount, a.item_wise_tax_detail, a.dont_recompute_tax
+                                from `tabSales Taxes and Charges` a join `tabSales Order` b
+                                on a.parent = b.name
+                                where b.name = '{name}'
+                            """.format(name=doc.name), as_dict=1)
 
-    for e in is_taxes:
-        is_taxes = new_doc.append("taxes", {})
-        is_taxes.charge_type = e.charge_type
-        is_taxes.account_head = e.account_head
-        is_taxes.idx = e.idx
-        is_taxes.description = e.description
-        is_taxes.cost_center = e.cost_center
-        is_taxes.rate = e.rate
-        is_taxes.account_currency = e.account_currency
+    for x in is_taxes:
+        taxes = new_doc.append("taxes", {})
+        taxes.charge_type = x.charge_type
+        taxes.row_id = x.row_id
+        taxes.account_head = x.account_head
+        taxes.description = x.description
+        taxes.included_in_print_rate = x.included_in_print_rate
+        taxes.included_in_paid_amount = x.included_in_paid_amount
+        taxes.rate = x.rate
+        taxes.account_currency = x.account_currency
+        taxes.tax_amount = x.tax_amount
+        taxes.total = x.total
+        taxes.tax_amount_after_discount_amount = x.tax_amount_after_discount_amount
+        taxes.base_tax_amount = x.base_tax_amount
+        taxes.base_total = x.base_total
+        taxes.base_tax_amount_after_discount_amount = x.base_tax_amount_after_discount_amount
+        taxes.item_wise_tax_detail = x.item_wise_tax_detail
+        taxes.dont_recompute_tax = x.dont_recompute_tax
            
     new_doc.insert(ignore_permissions=True)
     frappe.msgprint("  تم إنشاء فاتورة مبيعات بحالة مسودة رقم " + new_doc.name)
@@ -854,7 +884,7 @@ def dn_validate(doc, method=None):
             so=so[0][0]))
     pass
 @frappe.whitelist()
-def dn_on_submit(self, method=None):
+def dn_on_submit(doc, method=None):
     so = frappe.db.sql(
         """ select against_sales_order from `tabDelivery Note Item` where parent = '{parent}' limit 1 """.format(
             parent=doc.name))
@@ -1110,48 +1140,101 @@ def siv_on_submit(doc, method=None):
             
     ## Create Draft Delivery Note On Sales Invoice Submit
     new_doc = frappe.get_doc({
-            "doctype": "Delivery Note",
-            "posting_date": doc.posting_date,
-            "customer": doc.customer,
-            "sales_invoice": doc.name,
-            "shipment_pdf": doc.shipment_pdf,
+        "doctype": "Delivery Note",
+        "posting_date": doc.posting_date,
+        "customer": doc.customer,
+        "shipment_pdf": doc.shipment_pdf,
+        "customer_group": doc.customer_group,
+        "territory": doc.territory,
+        "tax_id": doc.tax_id,
+        "po_no": doc.po_no,
+        "po_date": doc.po_date,
+        "customer_address": doc.customer_address,
+        "shipping_address_name": doc.shipping_address_name,
+        "dispatch_address_name": doc.dispatch_address_name,
+        "company_address": doc.company_address,
+        "contact_person": doc.contact_person,
+        "tax_id": doc.tax_id,
+        "currency": doc.currency,
+        "conversion_rate": doc.conversion_rate,
+        "selling_price_list": doc.selling_price_list,
+        "price_list_currency": doc.price_list_currency,
+        "plc_conversion_rate": doc.plc_conversion_rate,
+        "ignore_pricing_rule": doc.ignore_pricing_rule,
+        "set_warehouse": doc.set_warehouse,
+        "tc_name": doc.tc_name,
+        "terms": doc.terms,
+        "apply_discount_on": doc.apply_discount_on,
+        "base_discount_amount": doc.base_discount_amount,
+        "additional_discount_percentage": doc.additional_discount_percentage,
+        "discount_amount": doc.discount_amount,
+        "driver": doc.driver,
+        "project": doc.project,
+        "cost_center": doc.cost_center,
         })
 
-    is_items = frappe.db.sql(""" select a.idx, a.name, a.item_code, a.item_name, a.item_group, a.qty, a.uom, a.rate, a.amount, a.description, a.warehouse 
-                                                                        from `tabSales Invoice Item` a join `tabSales Invoice` b
-                                                                        on a.parent = b.name
-                                                                        where b.name = '{name}'
-                                                                    """.format(name=doc.name), as_dict=1)
+    is_items = frappe.db.sql(""" select a.name, a.idx, a.item_code, a.item_name, a.description, a.qty, a.stock_qty, a.uom, a.stock_uom, a.conversion_factor, a.rate, a.amount,
+                                a.price_list_rate, a.base_price_list_rate, a.base_rate, a.base_amount, a.net_rate, a.net_amount, a.margin_type, a.margin_rate_or_amount, a.rate_with_margin,
+                                a.discount_percentage, a.discount_amount, a.base_rate_with_margin, a.item_tax_template, a.warehouse 
+                                from `tabSales Invoice Item` a join `tabSales Invoice` b
+                                on a.parent = b.name
+                                where b.name = '{name}'
+                            """.format(name=doc.name), as_dict=1)
 
     for c in is_items:
         items = new_doc.append("items", {})
-        items.item_code = c.item_code
         items.idx = c.idx
+        items.item_code = c.item_code
         items.item_name = c.item_name
         items.description = c.description
         items.qty = c.qty
         items.uom = c.uom
+        items.stock_uom = c.stock_uom
+        items.conversion_factor = c.conversion_factor
+        items.price_list_rate = c.price_list_rate
+        items.base_price_list_rate = c.base_price_list_rate
+        items.base_rate = c.base_rate
+        items.base_amount = c.base_amount
         items.rate = c.rate
+        items.net_rate = c.net_rate
+        items.net_amount = c.net_amount
         items.amount = c.amount
+        items.margin_type = c.margin_type
+        items.margin_rate_or_amount = c.margin_rate_or_amount
+        items.rate_with_margin = c.rate_with_margin
+        items.discount_percentage = c.discount_percentage
+        items.discount_amount = c.discount_amount
+        items.base_rate_with_margin = c.base_rate_with_margin
         items.warehouse = c.warehouse
         items.against_sales_invoice = doc.name
         items.si_detail = c.name
 
-    is_taxes = frappe.db.sql(""" select a.idx, a.charge_type, a.account_head, a.description, a.cost_center, a.rate, a.account_currency, a.tax_amount, a.total 
-                                                                        from `tabSales Taxes and Charges` a join `tabSales Invoice` b
-                                                                        on a.parent = b.name
-                                                                        where b.name = '{name}'
-                                                                    """.format(name=doc.name), as_dict=1)
+    is_taxes = frappe.db.sql(""" select a.idx, a.charge_type, a.row_id, a.account_head, a.description, a.included_in_print_rate, a.included_in_paid_amount, a.rate, a.account_currency, a.tax_amount,
+                                a.total, a.tax_amount_after_discount_amount, a.base_tax_amount, a.base_total, a.base_tax_amount_after_discount_amount, a.item_wise_tax_detail, a.dont_recompute_tax 
+                                from `tabSales Taxes and Charges` a join `tabSales Invoice` b
+                                on a.parent = b.name
+                                where b.name = '{name}'
+                            """.format(name=doc.name), as_dict=1)
 
-    for e in is_taxes:
-        is_taxes = new_doc.append("taxes", {})
-        is_taxes.charge_type = e.charge_type
-        is_taxes.idx = e.idx
-        is_taxes.account_head = e.account_head
-        is_taxes.description = e.description
-        is_taxes.cost_center = e.cost_center
-        is_taxes.rate = e.rate
-        is_taxes.account_currency = e.account_currency
+    for x in is_taxes:
+        taxes = new_doc.append("taxes", {})
+        taxes.idx = x.idx
+        taxes.charge_type = x.charge_type
+        taxes.row_id = x.row_id
+        taxes.account_head = x.account_head
+        taxes.description = x.description
+        taxes.included_in_print_rate = x.included_in_print_rate
+        taxes.included_in_paid_amount = x.included_in_paid_amount
+        taxes.rate = x.rate
+        taxes.account_currency = x.account_currency
+        taxes.tax_amount = x.tax_amount
+        taxes.total = x.total
+        taxes.tax_amount_after_discount_amount = x.tax_amount_after_discount_amount
+        taxes.base_tax_amount = x.base_tax_amount
+        taxes.base_total = x.base_total
+        taxes.base_tax_amount_after_discount_amount = x.base_tax_amount_after_discount_amount
+        taxes.item_wise_tax_detail = x.item_wise_tax_detail
+        taxes.dont_recompute_tax = x.dont_recompute_tax
            
     new_doc.insert(ignore_permissions=True)
     frappe.msgprint("  تم إنشاء اذن تسليم بحالة مسودة رقم " + new_doc.name)
@@ -1600,9 +1683,9 @@ def add_on_update(doc, method=None):
 @frappe.validate_and_sanitize_search_inputs
 def get_offered_items(doctype, txt, searchfield, start, page_len, filters):
     offers = [filters.get("value")]
-    return frappe.get_all(
-    	"Offered Items",
+    return frappe.get_all("Offered Items",
     	filters={"parent": ("in", offers)},
-    	fields=["item_code","item_name"],
+    	or_filters=[{"item_code": ["like", "{0}%".format(txt)]}, {"item_name": ["like", "{0}%".format(txt)]}],
+    	fields=["item_code","item_name","item_group"],
     	as_list=1,
     )
