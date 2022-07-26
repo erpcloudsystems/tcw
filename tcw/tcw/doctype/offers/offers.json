@@ -54,7 +54,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Offer Type",
-   "options": "Discount\nFree Items",
+   "options": "Discount\nBuy 1 Get 1 Free\nBuy 2 Get 1 Free\nBuy 1 Get 2 Free",
    "read_only": 1,
    "reqd": 1
   },
@@ -95,7 +95,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2022-06-05 14:31:59.843267",
+ "modified": "2022-06-09 14:46:57.527593",
  "modified_by": "Administrator",
  "module": "TCW",
  "name": "Offers",

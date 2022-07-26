@@ -1,32 +1,74 @@
 {
  "cards": [
   {
-   "card": "Pending Sales Order"
+   "card": "Total Sales Order Amount"
   },
   {
-   "card": "Need Attention Sales Order"
+   "card": "Total Sales Order Amount Pending"
   },
   {
-   "card": "Draft Sales Invoice"
+   "card": "Total Sales Order Amount dtaft"
   },
   {
-   "card": "Draft Delivery Note"
+   "card": "waiting invoice"
+  },
+  {
+   "card": "Total Sales Invoice July"
+  },
+  {
+   "card": "Total Sales Order Canceled By Customer"
+  },
+  {
+   "card": "Return"
   },
   {
    "card": "TMS Delivery Pending"
   },
   {
    "card": "Shipping Delivery Pending"
+  },
+  {
+   "card": "Draft Delivery Note"
+  },
+  {
+   "card": "SO From Whatsapp"
+  },
+  {
+   "card": "SO From Facebook"
+  },
+  {
+   "card": "SO From Call"
+  },
+  {
+   "card": "Draft Sales Invoice"
+  },
+  {
+   "card": "Approve by customer -1"
+  },
+  {
+   "card": "Total sales invoice June"
   }
  ],
  "charts": [
   {
-   "chart": "Sales Shipping Company",
-   "width": "Half"
+   "chart": "Sales Order Daily",
+   "width": "Full"
   },
   {
-   "chart": "Sales Shipping Method",
-   "width": "Half"
+   "chart": "item",
+   "width": "Full"
+  },
+  {
+   "chart": "Sales Persons",
+   "width": "Full"
+  },
+  {
+   "chart": "sales invoice",
+   "width": "Full"
+  },
+  {
+   "chart": "Return",
+   "width": "Full"
   }
  ],
  "creation": "2022-06-04 19:02:29.831262",
@@ -36,8 +78,8 @@
  "idx": 0,
  "is_default": 1,
  "is_standard": 1,
- "modified": "2022-06-04 19:36:01.961991",
- "modified_by": "Administrator",
+ "modified": "2022-07-24 14:32:26.429203",
+ "modified_by": "mahmoud@true.com",
  "module": "TCW",
  "name": "TCW Dashboard",
  "owner": "Administrator"
