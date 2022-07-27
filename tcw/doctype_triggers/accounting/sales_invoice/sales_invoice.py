@@ -165,7 +165,7 @@ def on_submit(doc, method=None):
             returned_data = json.loads(response.content)
             doc.way_bill_number = returned_data["waybillNumber"]
             doc.shipment_pdf = returned_data["labelURL"]
-            doc.save()
+            #doc.save()
 
             new_comment = frappe.get_doc({
                 "doctype": "Comment",
